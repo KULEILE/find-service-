@@ -1,0 +1,32 @@
+{
+  "name": "find-a-service-provider-server",
+  "version": "1.0.0",
+  "description": "API for the Find a Service Provider marketplace",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "migrate": "node src/scripts/migrate.js",
+    "seed": "node src/scripts/seed.js",
+    "retention": "node src/jobs/retention.js",
+    "smoke": "node test/smoke.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.5.0",
+    "node-cron": "^3.0.3",
+    "pg": "^8.12.0",
+    "socket.io": "^4.7.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "socket.io-client": "^4.8.4"
+  }
+}
