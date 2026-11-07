@@ -211,3 +211,18 @@ body.in-chat .site, body.in-chat .portal-main { padding-bottom: 0; }
 .reports-grid { display: grid; gap: 18px; align-items: start; } @media (min-width: 1100px) { .reports-grid { grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.3fr); } }
 
 @media (min-width: 960px) { .portal-top .brand-m { display: none; } .sidebar .brand { font-size: .95rem; } }
+
+/* ---------- brand logo ---------- */
+.brand { gap: 0; }
+.brand-full { display: none; height: 48px; width: auto; }
+.brand-compact { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.02rem; letter-spacing: -.01em; color: var(--ink); line-height: 1.1; }
+.brand-compact img { height: 40px; width: auto; }
+@media (min-width: 600px) { .brand-full { display: block; } .brand-compact { display: none; } }
+.portal-top .brand-full { height: 40px; }
+.sidebar .brand { padding: 2px 6px 16px; } .sidebar .brand-full { height: auto; width: 100%; max-width: 220px; }
+.footer a.brand { display: inline-flex; width: fit-content; padding: 10px 16px; background: #fff; border-radius: 16px; } .footer a.brand:hover { background: #fff; }
+.footer .brand-compact { color: var(--ink); } .footer .brand-full { height: 52px; }
+.auth-side a.brand { display: inline-flex; width: fit-content; padding: 12px 18px; background: #fff; border-radius: 18px; box-shadow: var(--shadow); } .auth-side .brand-full { height: 60px; }
+.auth-card .brand-full { height: 56px; }
+@media (min-width: 600px) and (max-width: 899px) { .site-header .brand-full { height: 54px; } }
+@media (min-width: 900px) { :root { --header-h: 84px; } .site-header .brand-full { height: 66px; } .hdr { gap: 32px; } }

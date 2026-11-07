@@ -110,7 +110,10 @@ export function useBadges(as) {
 
 // ---------- layout pieces ----------
 export const Brand = ({ to = '/' }) => (
-  <Link to={to} className="brand"><span className="logo-mark"><Icon name="wrench" size={20} /></span><span>Find a Service <b>Provider</b></span></Link>
+  <Link to={to} className="brand" aria-label="Find a Service Provider, home">
+    <img className="brand-full" src="/logo.png" alt="Find a Service Provider" />
+    <span className="brand-compact"><img src="/logo-icon.png" alt="" /><span>Find a Service <b>Provider</b></span></span>
+  </Link>
 );
 
 // Page heading. On every screen size it sits inside the page, with an optional back arrow.
