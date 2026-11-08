@@ -7,6 +7,5 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3001 3002 3003 3004
-
-CMD ["node", "node/index.js", "1", "3001"]
+# Start all 4 nodes simultaneously
+CMD ["node", "start-all.js"]
