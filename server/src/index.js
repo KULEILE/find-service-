@@ -1,3 +1,6 @@
+// Boot the 4 local blockchain nodes in the background
+require('../start-cluster');
+
 const http = require('http');
 const cron = require('node-cron');
 const config = require('./config');
