@@ -1,8 +1,8 @@
 const axios = require('axios');
 const crypto = require('crypto');
 
-// Ensure the keys are formatted correctly
-const formatKey = (key) => key ? key.replace(/\\n/g, '\n') : '';
+// Ensure the keys are formatted correctly (converting literal \n to actual newlines and trimming spaces)
+const formatKey = (key) => key ? key.replace(/\\n/g, '\n').trim() : '';
 
 const privateKey = formatKey(process.env.FSP_APP_PRIVATE_KEY);
 const publicKey = formatKey(process.env.FSP_APP_PUBLIC_KEY);
@@ -55,7 +55,12 @@ async function submitToChain(event) {
       // Idempotency: This transaction was already submitted
       return { status: 'ALREADY_SUBMITTED', transactionId: event.transaction_id };
     }
-    throw new Error(`Chain Gateway Error: ${error.response ? error.response.data.error : error.message}`);
+    
+    // Print the exact error from the Fly.io node to the Render logs
+    const chainError = error.response ? error.response.data : error.message;
+    console.error(`[Chain Gateway] Rejected by node. Status: ${error.response?.status}, Reason:`, chainError);
+    
+    throw new Error(`Chain Gateway Error: ${JSON.stringify(chainError)}`);
   }
 }
 
