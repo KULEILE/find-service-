@@ -1,0 +1,24 @@
+app = 'fsp-chain'
+primary_region = 'ams'
+
+[processes]
+  node1 = 'node node/index.js 1 3001'
+  node2 = 'node node/index.js 2 3002'
+  node3 = 'node node/index.js 3 3003'
+  node4 = 'node node/index.js 4 3004'
+
+# We expose port 3001 (Node 1) to the internet so the Render Gateway can talk to it.
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+  processes = ["node1"]
+
+# Nodes 2, 3, and 4 don't need public HTTP, but we must keep them running.
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
