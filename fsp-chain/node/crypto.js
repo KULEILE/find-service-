@@ -37,16 +37,17 @@ const generateKeyPair = () => {
 };
 
 const signData = (data, privateKeyPem) => {
-  const sign = crypto.createSign('SHA256');
-  sign.update(canonicalJson(data));
-  return sign.sign(privateKeyPem, 'hex');
+  const bufferData = Buffer.from(canonicalJson(data));
+  // For Ed25519, null is passed as the algorithm
+  return crypto.sign(null, bufferData, privateKeyPem).toString('hex');
 };
 
 const verifySignature = (data, signatureHex, publicKeyPem) => {
   try {
-    const verify = crypto.createVerify('SHA256');
-    verify.update(canonicalJson(data));
-    return verify.verify(publicKeyPem, signatureHex, 'hex');
+    const bufferData = Buffer.from(canonicalJson(data));
+    const signatureBuffer = Buffer.from(signatureHex, 'hex');
+    // For Ed25519, null is passed as the algorithm
+    return crypto.verify(null, bufferData, publicKeyPem, signatureBuffer);
   } catch {
     return false;
   }

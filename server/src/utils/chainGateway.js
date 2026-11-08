@@ -1,12 +1,17 @@
 const axios = require('axios');
 const crypto = require('crypto');
-const config = require('../config');
 
-// Ensure the keys are formatted correctly (converting literal \n to actual newlines)
+// Ensure the keys are formatted correctly
 const formatKey = (key) => key ? key.replace(/\\n/g, '\n') : '';
 
 const privateKey = formatKey(process.env.FSP_APP_PRIVATE_KEY);
 const publicKey = formatKey(process.env.FSP_APP_PUBLIC_KEY);
+
+// Fail fast if the key is missing or malformed
+if (!privateKey || !privateKey.includes('BEGIN PRIVATE KEY')) {
+  console.error("FATAL ERROR: FSP_APP_PRIVATE_KEY is missing or invalid in the environment variables.");
+  process.exit(1);
+}
 
 // Same deterministic JSON stringification used by the chain
 const canonicalJson = (obj) => {
@@ -16,9 +21,9 @@ const canonicalJson = (obj) => {
 };
 
 const signTransaction = (payload) => {
-  const sign = crypto.createSign('SHA256');
-  sign.update(canonicalJson(payload));
-  return sign.sign(privateKey, 'hex');
+  const data = Buffer.from(canonicalJson(payload));
+  // For Ed25519, null is passed as the algorithm. It handles hashing internally.
+  return crypto.sign(null, data, privateKey).toString('hex');
 };
 
 async function submitToChain(event) {
