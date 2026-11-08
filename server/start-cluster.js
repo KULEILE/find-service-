@@ -1,8 +1,19 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
-// Path to your blockchain folder
-const chainPath = path.join(__dirname, '../../fsp-chain');
+// Try to find the fsp-chain directory
+let chainPath = path.join(__dirname, '../../fsp-chain');
+if (!fs.existsSync(chainPath)) {
+  chainPath = path.join(__dirname, '../fsp-chain');
+}
+if (!fs.existsSync(chainPath)) {
+  console.error("❌ Could not find fsp-chain directory at", chainPath);
+  process.exit(1);
+}
+
+console.log(`📂 Found blockchain code at: ${chainPath}`);
+console.log("🚀 Starting FSP Chain Cluster (4 Validators)...");
 
 const nodes = [
   { id: 1, port: 3001 },
@@ -11,16 +22,14 @@ const nodes = [
   { id: 4, port: 3004 },
 ];
 
-console.log("Starting local FSP Chain Cluster...");
-
 nodes.forEach((node) => {
   const child = spawn('node', ['node/index.js', node.id.toString(), node.port.toString()], {
-    cwd: chainPath, // Run from the fsp-chain directory
-    stdio: 'inherit', // Show node logs in the Render console
-    env: process.env // Pass the keys from Render
+    cwd: chainPath, 
+    stdio: 'inherit', 
+    env: process.env 
   });
 
-  child.on('close', (code) => {
-    console.log(`[Node ${node.id}] exited with code ${code}`);
+  child.on('error', (err) => {
+    console.error(`❌ Failed to start Node ${node.id}:`, err);
   });
 });
