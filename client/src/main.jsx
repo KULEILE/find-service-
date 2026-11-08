@@ -7,7 +7,7 @@ import { ToastProvider } from './ui';
 import { MessagesLayout, Conversation, Notifications } from './chat';
 import { SiteLayout, Welcome, Services, Providers, ProviderDetail, NewConversation, RequestService, RequestSent, MyRequests, TrackRequest, More } from './customer';
 import { Login, Signup, ProviderLayout, Dashboard, Requests, RequestDetail, ServicesPage, ProfilePage } from './provider';
-import { AdminLayout, AdminDashboard, AdminCategories, AdminProviders, AdminRequests, AdminReports, AdminActivity, AdminSettings } from './admin';
+import { AdminLayout, AdminDashboard, AdminCategories, AdminProviders, AdminRequests, AdminReports, AdminActivity, AdminSettings, AdminBlockchain } from './admin';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -52,6 +52,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="providers" element={<AdminProviders />} />
             <Route path="requests" element={<AdminRequests />} />
             <Route path="reports" element={<AdminReports />} />
+            <Route path="blockchain" element={<AdminBlockchain />} />
             <Route path="activity" element={<AdminActivity />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="notifications" element={<Notifications as="staff" backTo="/admin" />} />

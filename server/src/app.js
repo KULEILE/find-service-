@@ -18,6 +18,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profiles'), { maxAge: '7d', index: false }));
 
 const api = express.Router();
+api.use('/admin/blockchain', require('./routes/blockchain'));
 api.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests. Please slow down.' } }));
 api.get('/health', (req, res) => res.json({ ok: true }));
 api.use('/auth', require('./routes/auth'));

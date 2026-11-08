@@ -9,8 +9,14 @@ export function AdminLayout() {
   if (!staff) return <Navigate to="/login" replace />;
   if (staff.role !== 'admin') return <Navigate to="/provider" replace />;
   const links = [
-    { to: '/admin', icon: 'grid', label: 'Dashboard', end: true }, { to: '/admin/categories', icon: 'list', label: 'Categories' }, { to: '/admin/providers', icon: 'users', label: 'Providers' },
-    { to: '/admin/requests', icon: 'wrench', label: 'Requests' }, { to: '/admin/reports', icon: 'flag', label: 'Reports' }, { to: '/admin/activity', icon: 'activity', label: 'Activity' }, { to: '/admin/settings', icon: 'settings', label: 'Settings' },
+    { to: '/admin', icon: 'grid', label: 'Dashboard', end: true }, 
+    { to: '/admin/categories', icon: 'list', label: 'Categories' }, 
+    { to: '/admin/providers', icon: 'users', label: 'Providers' },
+    { to: '/admin/requests', icon: 'wrench', label: 'Requests' }, 
+    { to: '/admin/reports', icon: 'flag', label: 'Reports' }, 
+    { to: '/admin/blockchain', icon: 'shield', label: 'Blockchain' }, // <-- New Link
+    { to: '/admin/activity', icon: 'activity', label: 'Activity' }, 
+    { to: '/admin/settings', icon: 'settings', label: 'Settings' },
   ];
   return <Portal links={links} user={staff} label="Administrator" mobileNav="tabs" padded onLogout={() => { signOut('staff'); nav('/login'); }} bell={<BellButton to="/admin/notifications" count={b.notifications} />} />;
 }
@@ -112,6 +118,63 @@ export function AdminReports() {
             </> : <p className="small muted">Resolved {detail.reviewed_at ? when(detail.reviewed_at) : ''}. This evidence is deleted automatically after the retention period.</p>}
           </div>) : <Empty icon="flag" title="Select a report">Choose a report to read the reported messages.</Empty>}</div>
       </div>
+    </>
+  );
+}
+
+export function AdminBlockchain() {
+  const { data, loading, error } = useAsync(() => api('/admin/blockchain/explorer', { as: 'staff' }), []);
+
+  if (loading) return <Spinner />;
+  if (error) return <Alert>{error}</Alert>;
+
+  return (
+    <>
+      <h1>Blockchain Explorer</h1>
+      <p className="muted small">Live view of the FSP Chain network and recent transactions.</p>
+      
+      <Alert>{error}</Alert>
+
+      <div className="cols">
+        <div className="kpi">
+          <b>{data.network.height}</b>
+          <span>Current Block Height</span>
+        </div>
+        <div className="kpi">
+          <b>4</b>
+          <span>Active Validators</span>
+        </div>
+      </div>
+
+      <h2>Network Status</h2>
+      <Table head={['Node', 'Status', 'Latest Hash']}>
+        <tr>
+          <td>Node 1 (Leader)</td>
+          <td><Pill kind="active">Synced</Pill></td>
+          <td className="small muted" style={{ wordBreak: 'break-all' }}>
+            {data.network.latestHash}
+          </td>
+        </tr>
+      </Table>
+
+      <h2>Recent Transactions (Outbox)</h2>
+      <Table head={['Tx ID', 'Event Type', 'Status', 'Created', 'Confirmed']}>
+        {data.transactions.map((tx) => (
+          <tr key={tx.transaction_id}>
+            <td className="small muted" style={{ maxWidth: '150px', wordBreak: 'break-all' }}>
+              {tx.transaction_id}
+            </td>
+            <td><b>{tx.event_type}</b></td>
+            <td>
+              <Pill kind={tx.submission_status === 'CONFIRMED' ? 'completed' : 'pending'}>
+                {tx.submission_status}
+              </Pill>
+            </td>
+            <td className="small muted">{when(tx.created_at)}</td>
+            <td className="small muted">{tx.confirmed_at ? when(tx.confirmed_at) : '-'}</td>
+          </tr>
+        ))}
+      </Table>
     </>
   );
 }
