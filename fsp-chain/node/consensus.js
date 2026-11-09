@@ -9,16 +9,27 @@ class ConsensusEngine {
     this.privateKey = privateKey;
     this.publicKey = publicKey;
 
-    // The addresses of all 4 validators
-    this.peers = [3001, 3002, 3003, 3004].filter(p => p !== this.port).map(p => `http://localhost:${p}`);
+    // If we are on Render, we use the internal URLs provided in env vars.
+    // If not, we fallback to localhost for local testing.
+    if (process.env.PEER_URLS) {
+      this.peers = process.env.PEER_URLS.split(',').filter(url => !url.includes(`:${port}`));
+    } else {
+      this.peers = [3001, 3002, 3003, 3004].filter(p => p !== this.port).map(p => `http://localhost:${p}`);
+    }
 
     // State for the current consensus round
     this.currentView = 0;
-    this.sequenceNumber = storage.getLatestBlock().height + 1;
+    this.sequenceNumber = 0; // Will be set after DB connects
     this.mempool = new Map(); // txId -> transaction
     this.prepares = new Map(); // txId -> Set of nodeIds
     this.commits = new Map(); // txId -> Set of nodeIds
     this.committed = new Set(); // txIds already saved to DB
+  }
+
+  // We call this once from index.js after the DB is ready
+  async initialize() {
+    const latest = await this.storage.getLatestBlock();
+    this.sequenceNumber = latest.height + 1;
   }
 
   // Step 1: Leader receives transaction from Gateway
@@ -51,7 +62,7 @@ class ConsensusEngine {
     prepareMsg.signature = signData(prepareMsg, this.privateKey);
     
     await this.broadcast('/pbft/prepare', prepareMsg);
-    this.checkQuorum(tx.transactionId, 'PREPARE');
+    await this.checkQuorum(tx.transactionId, 'PREPARE');
   }
 
   // Step 3: Receive Prepare from other nodes
@@ -66,7 +77,7 @@ class ConsensusEngine {
     if (!this.prepares.has(txId)) this.prepares.set(txId, new Set());
     this.prepares.get(txId).add(nodeId);
     
-    this.checkQuorum(txId, 'PREPARE');
+    await this.checkQuorum(txId, 'PREPARE');
   }
 
   // Step 4: Receive Commit from other nodes
@@ -80,7 +91,7 @@ class ConsensusEngine {
     if (!this.commits.has(txId)) this.commits.set(txId, new Set());
     this.commits.get(txId).add(nodeId);
     
-    this.checkQuorum(txId, 'COMMIT');
+    await this.checkQuorum(txId, 'COMMIT');
   }
 
   // Step 5: Check if we have enough votes (Quorum = 3 out of 4)
@@ -93,22 +104,24 @@ class ConsensusEngine {
         const commitMsg = { txId, sequenceNumber: this.sequenceNumber, nodeId: this.nodeId };
         commitMsg.signature = signData(commitMsg, this.privateKey);
         await this.broadcast('/pbft/commit', commitMsg);
-        this.checkQuorum(txId, 'COMMIT');
+        await this.checkQuorum(txId, 'COMMIT');
       } 
       else if (phase === 'COMMIT') {
-        console.log(`[Node ${this.nodeId}] COMMIT Quorum reached for ${txId}. Committing to SQLite!`);
+        console.log(`[Node ${this.nodeId}] COMMIT Quorum reached for ${txId}. Committing to Database!`);
         await this.commitBlock(txId);
       }
     }
   }
 
-  // Step 6: Save to SQLite
+  // Step 6: Save to PostgreSQL (Neon)
   async commitBlock(txId) {
     if (this.committed.has(txId)) return;
     this.committed.add(txId);
 
     const tx = this.mempool.get(txId);
-    const latestBlock = this.storage.getLatestBlock();
+    
+    // Await the latest block from Postgres
+    const latestBlock = await this.storage.getLatestBlock();
     const newHeight = latestBlock.height + 1;
     
     const block = {
@@ -119,8 +132,8 @@ class ConsensusEngine {
     };
     block.hash = sha256(canonicalJson(block));
 
-    // Save to this node's independent SQLite DB
-    this.storage.commitBlock(block, [tx]);
+    // Await the save to Postgres
+    await this.storage.commitBlock(block, [tx]);
     
     // Cleanup
     this.mempool.delete(txId);

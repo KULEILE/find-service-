@@ -1,20 +1,28 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
 class Storage {
   constructor(nodeId) {
-    this.db = new Database(path.join(__dirname, `..`, `node${nodeId}.db`));
-    this.init();
+    // Look for the specific database URL for this node (e.g., DATABASE_URL_NODE1)
+    const dbUrl = process.env[`DATABASE_URL_NODE${nodeId}`];
+    
+    if (!dbUrl) {
+      console.error(`FATAL: Missing DATABASE_URL_NODE${nodeId} environment variable.`);
+      process.exit(1);
+    }
+
+    // Connect to Neon. The connection string includes sslmode=require.
+    this.pool = new Pool({ connectionString: dbUrl });
+    this.initPromise = this.init();
   }
 
-  init() {
-    this.db.exec(`
+  async init() {
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS blocks (
         height INTEGER PRIMARY KEY,
         hash TEXT NOT NULL,
         previous_hash TEXT NOT NULL,
         merkle_root TEXT NOT NULL,
-        timestamp INTEGER NOT NULL
+        timestamp BIGINT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS transactions (
         transaction_id TEXT PRIMARY KEY,
@@ -25,31 +33,40 @@ class Storage {
     `);
   }
 
-  getLatestBlock() {
-    return this.db.prepare('SELECT * FROM blocks ORDER BY height DESC LIMIT 1').get();
+  async getLatestBlock() {
+    await this.initPromise;
+    const res = await this.pool.query('SELECT * FROM blocks ORDER BY height DESC LIMIT 1');
+    return res.rows[0];
   }
 
-  getBlock(height) {
-    return this.db.prepare('SELECT * FROM blocks WHERE height = ?').get(height);
+  async getTransaction(txId) {
+    await this.initPromise;
+    const res = await this.pool.query('SELECT * FROM transactions WHERE transaction_id = $1', [txId]);
+    return res.rows[0] ? JSON.parse(res.rows[0].envelope) : null;
   }
 
-  getTransaction(txId) {
-    const row = this.db.prepare('SELECT * FROM transactions WHERE transaction_id = ?').get(txId);
-    return row ? JSON.parse(row.envelope) : null;
-  }
-
-  // Save a committed block and its transactions
-  commitBlock(block, transactions) {
-    const insertBlock = this.db.prepare('INSERT INTO blocks (height, hash, previous_hash, merkle_root, timestamp) VALUES (?, ?, ?, ?, ?)');
-    const insertTx = this.db.prepare('INSERT INTO transactions (transaction_id, block_height, envelope) VALUES (?, ?, ?)');
-
-    const transaction = this.db.transaction(() => {
-      insertBlock.run(block.height, block.hash, block.previous_hash, block.merkle_root, block.timestamp);
+  async commitBlock(block, transactions) {
+    await this.initPromise;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'INSERT INTO blocks (height, hash, previous_hash, merkle_root, timestamp) VALUES ($1, $2, $3, $4, $5)',
+        [block.height, block.hash, block.previous_hash, block.merkle_root, block.timestamp]
+      );
       for (const tx of transactions) {
-        insertTx.run(tx.transactionId, block.height, JSON.stringify(tx));
+        await client.query(
+          'INSERT INTO transactions (transaction_id, block_height, envelope) VALUES ($1, $2, $3)',
+          [tx.transactionId, block.height, JSON.stringify(tx)]
+        );
       }
-    });
-    transaction();
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 }
 
