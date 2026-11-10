@@ -17,8 +17,7 @@ class ConsensusEngine {
       const internalUrls = [
         'http://fsp-node1:10000',
         'http://fsp-node2:10000',
-        'http://fsp-node3:10000',
-        'http://fsp-node4:10000'
+        'http://fsp-node3:10000'
       ];
       // We filter out our own URL so we don't send messages to ourselves
       this.peers = internalUrls.filter(url => url !== `http://fsp-node${nodeId}:10000`);
@@ -103,11 +102,11 @@ class ConsensusEngine {
     await this.checkQuorum(txId, 'COMMIT');
   }
 
-  // Step 5: Check if we have enough votes (Quorum = 3 out of 4)
+  // Step 5: Check if we have enough votes (Quorum = 2 out of 3)
   async checkQuorum(txId, phase) {
     const votes = phase === 'PREPARE' ? this.prepares.get(txId) : this.commits.get(txId);
     
-    if (votes && votes.size >= 3 && !this.committed.has(txId)) {
+    if (votes && votes.size >= 2 && !this.committed.has(txId)) {
       if (phase === 'PREPARE') {
         console.log(`[Node ${this.nodeId}] PREPARE Quorum reached for ${txId}. Sending Commit...`);
         const commitMsg = { txId, sequenceNumber: this.sequenceNumber, nodeId: this.nodeId };
