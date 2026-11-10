@@ -19,6 +19,9 @@ class ConsensusEngine {
         .map(p => `http://127.0.0.1:${p}`);
     }
 
+    // Log the peers so we can see who this node is trying to talk to
+    console.log(`[Node ${this.nodeId}] My Peers: ${this.peers.join(', ')}`);
+
     // State for the current consensus round
     this.currentView = 0;
     this.sequenceNumber = 0; // Will be set after DB connects
