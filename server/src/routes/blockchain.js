@@ -13,7 +13,7 @@ router.get('/explorer', asyncHandler(async (req, res) => {
   // 1. Get the chain status from Node 1
   let chainStatus = { height: 0, latestHash: '...' };
   try {
-    const statusRes = await axios.get(`http://127.0.0.1:3001/chain/status`);
+    const statusRes = await axios.get(`${process.env.CHAIN_NODE_URL}/chain/status`);
     chainStatus = statusRes.data;
   } catch (err) {
     console.error("Could not reach blockchain node", err.message);
