@@ -9,17 +9,21 @@ class ConsensusEngine {
     this.privateKey = privateKey;
     this.publicKey = publicKey;
 
-    // If PEER_URLS is set, use it. Otherwise, use 127.0.0.1.
-    // We filter out our own port so we don't send messages to ourselves.
+    // 1. Check for PEER_URLS env variable (for local testing or custom setups)
+    // 2. Otherwise, default to Render's internal network URLs (fsp-node1:10000, etc.)
     if (process.env.PEER_URLS) {
-      this.peers = process.env.PEER_URLS.split(',').filter(url => !url.includes(`:${port}`));
+      this.peers = process.env.PEER_URLS.split(',').filter(url => url.trim() !== '');
     } else {
-      this.peers = [3001, 3002, 3003, 3004]
-        .filter(p => p !== this.port)
-        .map(p => `http://127.0.0.1:${p}`);
+      const internalUrls = [
+        'http://fsp-node1:10000',
+        'http://fsp-node2:10000',
+        'http://fsp-node3:10000',
+        'http://fsp-node4:10000'
+      ];
+      // We filter out our own URL so we don't send messages to ourselves
+      this.peers = internalUrls.filter(url => url !== `http://fsp-node${nodeId}:10000`);
     }
 
-    // Log the peers so we can see who this node is trying to talk to
     console.log(`[Node ${this.nodeId}] My Peers: ${this.peers.join(', ')}`);
 
     // State for the current consensus round
