@@ -141,7 +141,7 @@ export function AdminBlockchain() {
           <span>Current Block Height</span>
         </div>
         <div className="kpi">
-          <b>3</b>
+          <b>1</b> {/* Changed from 3 to 1 */}
           <span>Active Validators</span>
         </div>
       </div>
