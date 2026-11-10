@@ -11,8 +11,9 @@ class ConsensusEngine {
 
     // If we are on Render, we use the internal URLs provided in env vars.
     // If not, we fallback to localhost for local testing.
+        // Use internal URLs from Render env, or fallback to localhost
     if (process.env.PEER_URLS) {
-      this.peers = process.env.PEER_URLS.split(',').filter(url => !url.includes(`:${port}`));
+      this.peers = process.env.PEER_URLS.split(',');
     } else {
       this.peers = [3001, 3002, 3003, 3004].filter(p => p !== this.port).map(p => `http://localhost:${p}`);
     }
