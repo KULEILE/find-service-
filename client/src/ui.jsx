@@ -91,13 +91,23 @@ export function useBadges(as) {
   const [b, setB] = useState({ messages: 0, notifications: 0 });
   const [tick, setTick] = useState(0);
   useEffect(() => { const f = (e) => e.detail === as && setTick((t) => t + 1); window.addEventListener('fsp:signed-in', f); return () => window.removeEventListener('fsp:signed-in', f); }, [as]);
+  
   const load = useCallback(async () => {
     if (!tokens.get(as)) { setB({ messages: 0, notifications: 0 }); return; }
+    
+    // Check if the user is an admin to avoid 403 on conversations
+    const info = tokens.info(as);
+    const isAdmin = info && info.role === 'admin';
+
     try {
-      const [c, n] = await Promise.all([api('/conversations', { as }), api('/notifications', { as })]);
-      setB({ messages: c.reduce((s, x) => s + x.unread, 0), notifications: n.unread });
+      const [c, n] = await Promise.all([
+        isAdmin ? Promise.resolve([]) : api('/conversations', { as }), 
+        api('/notifications', { as })
+      ]);
+      setB({ messages: isAdmin ? 0 : c.reduce((s, x) => s + x.unread, 0), notifications: n.unread });
     } catch { /* not signed in yet */ }
   }, [as]);
+
   useEffect(() => {
     load();
     const s = getSocket(as);
