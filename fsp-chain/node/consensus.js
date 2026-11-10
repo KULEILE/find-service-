@@ -9,13 +9,14 @@ class ConsensusEngine {
     this.privateKey = privateKey;
     this.publicKey = publicKey;
 
-    // If we are on Render, we use the internal URLs provided in env vars.
-    // If not, we fallback to localhost for local testing.
-        // Use internal URLs from Render env, or fallback to localhost
+    // If PEER_URLS is set, use it. Otherwise, use 127.0.0.1.
+    // We filter out our own port so we don't send messages to ourselves.
     if (process.env.PEER_URLS) {
-      this.peers = process.env.PEER_URLS.split(',');
+      this.peers = process.env.PEER_URLS.split(',').filter(url => !url.includes(`:${port}`));
     } else {
-      this.peers = [3001, 3002, 3003, 3004].filter(p => p !== this.port).map(p => `http://localhost:${p}`);
+      this.peers = [3001, 3002, 3003, 3004]
+        .filter(p => p !== this.port)
+        .map(p => `http://127.0.0.1:${p}`);
     }
 
     // State for the current consensus round
