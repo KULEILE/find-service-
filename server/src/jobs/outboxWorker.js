@@ -1,5 +1,6 @@
 const { query } = require('../db');
 const { submitToChain } = require('../utils/chainGateway');
+const axios = require('axios');
 
 // The worker runs every 3 seconds
 const POLL_INTERVAL_MS = 3000;
@@ -25,8 +26,11 @@ async function processOutbox() {
 
     for (const event of events) {
       try {
+        console.log(`[Outbox] Attempting to submit ${event.transaction_id} to ${process.env.CHAIN_NODE_URL}`);
+        
         // 2. Submit to the blockchain gateway
         const result = await submitToChain(event);
+        console.log(`[Outbox] Node responded with:`, result);
         
         // 3. Update status to SUBMITTED
         await query(
@@ -69,10 +73,11 @@ async function checkConfirmations() {
     for (const tx of submitted) {
       try {
         // Ask the chain if this transaction is confirmed
-        const axios = require('axios');
         const res = await axios.get(`${process.env.CHAIN_NODE_URL}/transactions/${tx.transaction_id}`, {
           headers: { 'x-fsp-gateway-key': process.env.GATEWAY_API_KEY }
         });
+
+        console.log(`[Outbox] Status check for ${tx.transaction_id}:`, res.data.status);
 
         if (res.data.status === 'CONFIRMED') {
           // The chain has committed the block!
