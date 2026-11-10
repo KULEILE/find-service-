@@ -2,16 +2,20 @@ const { Pool } = require('pg');
 
 class Storage {
   constructor(nodeId) {
-    // Look for the specific database URL for this node (e.g., DATABASE_URL_NODE1)
-    const dbUrl = process.env[`DATABASE_URL_NODE${nodeId}`];
+    // Use the DATABASE_URL provided by Render
+    const dbUrl = process.env.DATABASE_URL;
     
     if (!dbUrl) {
-      console.error(`FATAL: Missing DATABASE_URL_NODE${nodeId} environment variable.`);
+      console.error(`FATAL: Missing DATABASE_URL environment variable.`);
       process.exit(1);
     }
 
-    // Connect to Neon. The connection string includes sslmode=require.
-    this.pool = new Pool({ connectionString: dbUrl });
+    // Render PostgreSQL requires SSL for both internal and external connections
+    this.pool = new Pool({ 
+      connectionString: dbUrl,
+      ssl: { rejectUnauthorized: false }
+    });
+    
     this.initPromise = this.init();
   }
 
