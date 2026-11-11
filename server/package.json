@@ -4,7 +4,7 @@
   "description": "API for the Find a Service Provider marketplace",
   "main": "src/index.js",
   "scripts": {
-     "start": "node src/index.js",
+    "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "node src/scripts/migrate.js",
     "seed": "node src/scripts/seed.js",
@@ -16,6 +16,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
