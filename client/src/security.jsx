@@ -1,44 +1,29 @@
-// The security portal: its own page, its own login, its own token. Host it on its own address.
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { api, tokens, when } from './api';
-import { Alert, AuthLayout, Field, Pill, Portal, Spinner, useAsync, useToast } from './ui';
+import { api, when } from './api';
+import { useSession } from './session';
+import { Alert, Field, Pill, Portal, Spinner, useAsync, useToast } from './ui';
 
-export function useSecurity() {
-  const [user, setUser] = useState(() => tokens.info('security'));
-  useEffect(() => { const f = (e) => e.detail === 'security' && setUser(null); window.addEventListener('fsp:signed-out', f); return () => window.removeEventListener('fsp:signed-out', f); }, []);
-  return { user, signIn: (t, u) => { tokens.set('security', t, u); setUser(u); }, signOut: () => { tokens.clear('security'); setUser(null); } };
-}
+export function SecurityLayout() {
+  const { staff, signOut } = useSession(); const nav = useNavigate();
+  
+  if (!staff) return <Navigate to="/login" replace />;
+  if (staff.role !== 'security_admin') return <Navigate to="/login" replace />;
 
-export function SecurityLogin({ signIn }) {
-  const nav = useNavigate(); const [f, setF] = useState({ email: '', password: '' }); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  async function submit(e) { e.preventDefault(); setError(''); setBusy(true); try { const r = await api('/security/login', { method: 'POST', body: f }); signIn(r.token, r.user); nav('/', { replace: true }); } catch (x) { setError(x.message); } finally { setBusy(false); } }
-  return (
-    <AuthLayout title="Security portal" subtitle="Authorised security administrators only. Every attempt is recorded." heading="Protect the platform and the people who use it"
-      points={['Control who can read and change each module', 'Watch logins and suspicious activity', 'Set security and data retention rules']}>
-      <form className="stack" onSubmit={submit}>
-        <Alert>{error}</Alert>
-        <Field label="Email"><input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required autoComplete="username" /></Field>
-        <Field label="Password"><input className="input" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required autoComplete="current-password" /></Field>
-        <button className="btn lg block" disabled={busy}>{busy ? 'Checking...' : 'Log in'}</button>
-      </form>
-    </AuthLayout>
-  );
-}
-
-export function SecurityLayout({ user, signOut }) {
-  if (!user) return <Navigate to="/login" replace />;
   const links = [
-    { to: '/', icon: 'shield', label: 'Overview', end: true }, { to: '/permissions', icon: 'lock', label: 'Roles and permissions' },
-    { to: '/accounts', icon: 'users', label: 'Accounts' }, { to: '/logs', icon: 'activity', label: 'Security log' }, { to: '/policies', icon: 'settings', label: 'Policies' },
+    { to: '/security', icon: 'shield', label: 'Overview', end: true }, 
+    { to: '/security/permissions', icon: 'lock', label: 'Roles and permissions' },
+    { to: '/security/accounts', icon: 'users', label: 'Accounts' }, 
+    { to: '/security/logs', icon: 'activity', label: 'Security log' }, 
+    { to: '/security/policies', icon: 'settings', label: 'Policies' },
   ];
-  return <Portal links={links} user={user} label="Security administrator" mobileNav="tabs" padded onLogout={signOut} />;
+  return <Portal links={links} user={staff} label="Security administrator" mobileNav="tabs" padded onLogout={() => { signOut('staff'); nav('/login'); }} />;
 }
 
 const Table = ({ head, children }) => <div className="tablewrap"><table><thead><tr>{head.map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 
 export function Overview() {
-  const { data, loading, error } = useAsync(() => api('/security/overview', { as: 'security' }), []);
+  const { data, loading, error } = useAsync(() => api('/security/overview', { as: 'staff' }), []);
   if (loading) return <Spinner />; if (error) return <Alert>{error}</Alert>;
   const k = (n, l, warn) => <div className="kpi" style={warn && n > 0 ? { borderColor: 'var(--red)' } : {}}><b>{n}</b><span>{l}</span></div>;
   return (
@@ -54,14 +39,14 @@ export function Overview() {
 }
 
 export function Permissions() {
-  const toast = useToast(); const { data, loading, error, reload } = useAsync(() => api('/security/matrix', { as: 'security' }), []); const [err, setErr] = useState('');
+  const toast = useToast(); const { data, loading, error, reload } = useAsync(() => api('/security/matrix', { as: 'staff' }), []); const [err, setErr] = useState('');
   if (loading) return <Spinner />; if (error) return <Alert>{error}</Alert>;
   const cell = (role, mod) => data.permissions.find((p) => p.role_id === role.id && p.module_id === mod.id) || { can_read: false, can_write: false };
-  async function set(role, mod, can_read, can_write) { setErr(''); try { await api('/security/permissions', { method: 'PUT', body: { role_id: role.id, module_id: mod.id, can_read, can_write }, as: 'security' }); toast('Permission saved.'); reload(); } catch (e) { setErr(e.message); } }
+  async function set(role, mod, can_read, can_write) { setErr(''); try { await api('/security/permissions', { method: 'PUT', body: { role_id: role.id, module_id: mod.id, can_read, can_write }, as: 'staff' }); toast('Permission saved.'); reload(); } catch (e) { setErr(e.message); } }
   return (
     <>
       <h1>Roles and permissions</h1>
-      <p className="muted small">R lets a role read a module. W lets it change things. Changes apply within seconds, even to people who are logged in. Customers have no account, so their access is the same for every verified phone number.</p>
+      <p className="muted small">R lets a role read a module. W lets it change things. Changes apply within seconds, even to people who are logged in.</p>
       <Alert>{err}</Alert>
       <div className="tablewrap"><table className="matrix"><thead><tr><th>Module</th>{data.roles.map((r) => <th key={r.id} title={r.description}>{r.name.replace('_', ' ')}</th>)}</tr></thead>
         <tbody>{data.modules.map((m) => <tr key={m.id}><td><b>{m.name}</b></td>{data.roles.map((r) => { const c = cell(r, m); return (
@@ -72,14 +57,15 @@ export function Permissions() {
   );
 }
 
-export function Accounts({ me }) {
-  const toast = useToast(); const { data, loading, error, reload } = useAsync(() => api('/security/users', { as: 'security' }), []);
+export function Accounts() {
+  const { staff } = useSession();
+  const toast = useToast(); const { data, loading, error, reload } = useAsync(() => api('/security/users', { as: 'staff' }), []);
   const [f, setF] = useState({ name: '', email: '', password: '', role: 'admin' }); const [err, setErr] = useState('');
   const act = async (fn, msg) => { setErr(''); try { await fn(); toast(msg); reload(); } catch (e) { setErr(e.message); } };
   return (
     <>
       <h1>Accounts</h1>
-      <form className="card row wrap" onSubmit={(e) => { e.preventDefault(); act(async () => { await api('/security/users', { method: 'POST', body: f, as: 'security' }); setF({ name: '', email: '', password: '', role: 'admin' }); }, 'Staff account created.'); }}>
+      <form className="card row wrap" onSubmit={(e) => { e.preventDefault(); act(async () => { await api('/security/users', { method: 'POST', body: f, as: 'staff' }); setF({ name: '', email: '', password: '', role: 'admin' }); }, 'Staff account created.'); }}>
         <div className="grow"><Field label="Name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field></div>
         <div className="grow"><Field label="Email"><input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required /></Field></div>
         <div className="grow"><Field label="Temporary password" hint="At least 10 characters"><input className="input" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required minLength={10} autoComplete="new-password" /></Field></div>
@@ -89,17 +75,17 @@ export function Accounts({ me }) {
       <Alert>{err || error}</Alert>
       {loading ? <Spinner /> : <Table head={['Name', 'Email', 'Role', 'Status', 'Last login', '']}>{data.map((u) => (
         <tr key={u.id}><td><b>{u.name}</b></td><td>{u.email}</td><td>{u.role.replace('_', ' ')}</td><td><Pill kind={u.locked ? 'critical' : u.status}>{u.locked ? 'locked' : u.status}</Pill></td><td>{u.last_login_at ? when(u.last_login_at) : 'Never'}</td>
-          <td className="right">{u.id !== me.id && <>
-            {u.locked && <button className="btn outline small" onClick={() => act(() => api(`/security/users/${u.id}`, { method: 'PATCH', body: { unlock: true }, as: 'security' }), 'Account unlocked.')}>Unlock</button>}{' '}
-            {u.status === 'active' ? <button className="btn danger small" onClick={() => window.confirm(`Suspend ${u.name}?`) && act(() => api(`/security/users/${u.id}`, { method: 'PATCH', body: { status: 'suspended' }, as: 'security' }), 'Account suspended.')}>Suspend</button>
-              : <button className="btn outline small" onClick={() => act(() => api(`/security/users/${u.id}`, { method: 'PATCH', body: { status: 'active' }, as: 'security' }), 'Account activated.')}>Activate</button>}</>}</td></tr>))}</Table>}
+          <td className="right">{u.id !== staff.id && <>
+            {u.locked && <button className="btn outline small" onClick={() => act(() => api(`/security/users/${u.id}`, { method: 'PATCH', body: { unlock: true }, as: 'staff' }), 'Account unlocked.')}>Unlock</button>}{' '}
+            {u.status === 'active' ? <button className="btn danger small" onClick={() => window.confirm(`Suspend ${u.name}?`) && act(() => api(`/security/users/${u.id}`, { method: 'PATCH', body: { status: 'suspended' }, as: 'staff' }), 'Account suspended.')}>Suspend</button>
+              : <button className="btn outline small" onClick={() => act(() => api(`/security/users/${u.id}`, { method: 'PATCH', body: { status: 'active' }, as: 'staff' }), 'Account activated.')}>Activate</button>}</>}</td></tr>))}</Table>}
     </>
   );
 }
 
 export function Logs() {
   const [sev, setSev] = useState('');
-  const { data, loading, error } = useAsync(() => api(`/security/logs${sev ? `?severity=${sev}` : ''}`, { as: 'security' }), [sev]);
+  const { data, loading, error } = useAsync(() => api(`/security/logs${sev ? `?severity=${sev}` : ''}`, { as: 'staff' }), [sev]);
   return (
     <>
       <div className="row between wrap"><h1>Security log</h1><select className="input" style={{ width: 180 }} value={sev} onChange={(e) => setSev(e.target.value)} aria-label="Filter by level"><option value="">All levels</option><option value="info">Information</option><option value="warning">Warnings</option><option value="critical">Critical</option></select></div>
@@ -110,8 +96,8 @@ export function Logs() {
 }
 
 export function Policies() {
-  const toast = useToast(); const { data, loading, error, reload } = useAsync(() => api('/security/policies', { as: 'security' }), []); const [edit, setEdit] = useState({});
-  async function save(p) { try { await api(`/security/policies/${p.key}`, { method: 'PUT', body: { value: edit[p.key] }, as: 'security' }); toast('Policy saved.'); setEdit({ ...edit, [p.key]: undefined }); reload(); } catch (e) { toast(e.message); } }
+  const toast = useToast(); const { data, loading, error, reload } = useAsync(() => api('/security/policies', { as: 'staff' }), []); const [edit, setEdit] = useState({});
+  async function save(p) { try { await api(`/security/policies/${p.key}`, { method: 'PUT', body: { value: edit[p.key] }, as: 'staff' }); toast('Policy saved.'); setEdit({ ...edit, [p.key]: undefined }); reload(); } catch (e) { toast(e.message); } }
   return (
     <>
       <h1>Security policies</h1><p className="muted small">Rules for logins, one-time codes and how long private data is kept.</p><Alert>{error}</Alert>

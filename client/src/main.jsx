@@ -8,6 +8,7 @@ import { MessagesLayout, Conversation, Notifications } from './chat';
 import { SiteLayout, Welcome, Services, Providers, ProviderDetail, NewConversation, RequestService, RequestSent, MyRequests, TrackRequest, More } from './customer';
 import { Login, Signup, ProviderLayout, Dashboard, Requests, RequestDetail, ServicesPage, ProfilePage } from './provider';
 import { AdminLayout, AdminDashboard, AdminCategories, AdminProviders, AdminRequests, AdminReports, AdminActivity, AdminSettings, AdminBlockchain } from './admin';
+import { SecurityLayout, Overview, Permissions, Accounts, Logs, Policies } from './security';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -57,6 +58,15 @@ createRoot(document.getElementById('root')).render(
             <Route path="settings" element={<AdminSettings />} />
             <Route path="notifications" element={<Notifications as="staff" backTo="/admin" />} />
           </Route>
+
+          <Route path="/security" element={<SecurityLayout />}>
+            <Route index element={<Overview />} />
+            <Route path="permissions" element={<Permissions />} />
+            <Route path="accounts" element={<Accounts />} />
+            <Route path="logs" element={<Logs />} />
+            <Route path="policies" element={<Policies />} />
+          </Route>
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

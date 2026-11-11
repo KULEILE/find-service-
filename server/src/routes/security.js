@@ -1,5 +1,3 @@
-// Security administration. This is the "security configuration module with a different domain":
-// it uses its own login, its own token audience ("security") and is meant to run on its own address.
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
@@ -7,23 +5,18 @@ const { z } = require('zod');
 const { query, tx } = require('../db');
 const { asyncHandler, HttpError, clearPolicyCache, logActivity, logSecurity } = require('../utils/helpers');
 const { authenticate, requireRole, requirePermission, clearPermissionCache } = require('../middleware/auth');
-const { loginUser } = require('../utils/login');
 
 const router = express.Router();
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts. Try again later.' } });
 
-router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
-  const { token, user } = await loginUser(req, { allowedRoles: ['security_admin'], aud: 'security' });
-  res.json({ token, user });
-}));
+// No need for a separate /login route anymore, they log in via /api/auth/login
 
-router.use(authenticate('security'), requireRole('security_admin'));
+router.use(authenticate('main'), requireRole('security_admin')); // Changed from 'security' to 'main'
 const read = requirePermission('security_administration', 'read');
 const write = requirePermission('security_administration', 'write');
 
 router.get('/me', asyncHandler(async (req, res) => res.json({ user: { id: req.actor.id, name: req.actor.name, email: req.actor.email, role: req.actor.role } })));
 
-// ---------- overview and suspicious activity ----------
+// ---------- overview ----------
 router.get('/overview', read, asyncHandler(async (req, res) => {
   const [counts, locked, suspicious, latest] = await Promise.all([
     query(`SELECT count(*) FILTER (WHERE event_type = 'login_failed')::int AS failed_logins,
@@ -40,7 +33,7 @@ router.get('/overview', read, asyncHandler(async (req, res) => {
   res.json({ last_24h: counts.rows[0], locked_accounts: locked.rows[0].n, suspicious_ips: suspicious.rows, latest_alerts: latest.rows });
 }));
 
-// ---------- roles, modules and the read / write matrix ----------
+// ---------- matrix ----------
 router.get('/matrix', read, asyncHandler(async (req, res) => {
   const [roles, modules, perms] = await Promise.all([
     query('SELECT id, name, description, is_registered FROM roles ORDER BY id'),
@@ -55,9 +48,9 @@ router.put('/permissions', write, asyncHandler(async (req, res) => {
   const info = await query('SELECT r.name AS role, m.code AS module FROM roles r, modules m WHERE r.id = $1 AND m.id = $2', [b.role_id, b.module_id]);
   if (!info.rows[0]) throw new HttpError(404, 'Role or module not found.');
   if (info.rows[0].role === 'security_admin' && info.rows[0].module === 'security_administration' && !(b.can_read && b.can_write)) {
-    throw new HttpError(409, 'The security admin must always keep read and write access to security administration, or nobody could fix permissions.');
+    throw new HttpError(409, 'The security admin must always keep read and write access to security administration.');
   }
-  const can_read = b.can_write ? true : b.can_read;   // writing needs reading
+  const can_read = b.can_write ? true : b.can_read;
   await query(
     `INSERT INTO role_permissions (role_id, module_id, can_read, can_write) VALUES ($1,$2,$3,$4)
      ON CONFLICT (role_id, module_id) DO UPDATE SET can_read = $3, can_write = $4, updated_at = now()`, [b.role_id, b.module_id, can_read, b.can_write]);
@@ -112,7 +105,7 @@ router.patch('/users/:id', write, asyncHandler(async (req, res) => {
   res.json({ id, ...b });
 }));
 
-// ---------- security log ----------
+// ---------- logs ----------
 router.get('/logs', read, asyncHandler(async (req, res) => {
   const f = z.object({ severity: z.enum(['info', 'warning', 'critical']).optional(), event: z.string().max(60).optional() }).parse(req.query);
   const { rows } = await query(
@@ -123,7 +116,7 @@ router.get('/logs', read, asyncHandler(async (req, res) => {
   res.json(rows);
 }));
 
-// ---------- security policies ----------
+// ---------- policies ----------
 router.get('/policies', read, asyncHandler(async (req, res) => {
   res.json((await query('SELECT key, value, description, updated_at FROM security_policies ORDER BY key')).rows);
 }));

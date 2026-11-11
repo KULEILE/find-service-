@@ -37,7 +37,8 @@ router.post('/register-provider', asyncHandler(async (req, res) => {
 }));
 
 router.post('/login', asyncHandler(async (req, res) => {
-  const { token, user } = await loginUser(req, { allowedRoles: ['provider', 'admin'], aud: 'main' });
+  // Allow security_admin to login here
+  const { token, user } = await loginUser(req, { allowedRoles: ['provider', 'admin', 'security_admin'], aud: 'main' });
   res.json({ token, user });
 }));
 
