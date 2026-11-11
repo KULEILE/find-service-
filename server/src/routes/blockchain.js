@@ -11,12 +11,14 @@ router.use(authenticate('main'), requireRole('admin'));
 
 router.get('/explorer', asyncHandler(async (req, res) => {
   // 1. Get the chain status from Node 1
-  let chainStatus = { height: 0, latestHash: '...' };
+  let chainStatus = { height: 0, latestHash: '...', networkId: 'FSP-MAIN' };
+  
   try {
+    // This URL points to your Render Node 1 (e.g., https://fsp-node1-i4lb.onrender.com)
     const statusRes = await axios.get(`${process.env.CHAIN_NODE_URL}/chain/status`);
     chainStatus = statusRes.data;
   } catch (err) {
-    console.error("Could not reach blockchain node", err.message);
+    console.error("Could not reach blockchain node for Explorer:", err.message);
   }
 
   // 2. Get the recent transactions from PostgreSQL outbox

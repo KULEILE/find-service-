@@ -2,20 +2,13 @@ const { Pool } = require('pg');
 
 class Storage {
   constructor(nodeId) {
-    // Use the DATABASE_URL provided by Render
     const dbUrl = process.env.DATABASE_URL;
-    
     if (!dbUrl) {
       console.error(`FATAL: Missing DATABASE_URL environment variable.`);
       process.exit(1);
     }
 
-    // Render PostgreSQL requires SSL for both internal and external connections
-    this.pool = new Pool({ 
-      connectionString: dbUrl,
-      ssl: { rejectUnauthorized: false }
-    });
-    
+    this.pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
     this.initPromise = this.init();
   }
 
