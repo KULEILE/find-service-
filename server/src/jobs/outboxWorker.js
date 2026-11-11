@@ -11,7 +11,7 @@ async function processOutbox() {
   isRunning = true;
 
   try {
-    // 1. Fetch pending events (limit to 10 at a time to avoid flooding the chain)
+    // 1. Fetch pending events
     const { rows: events } = await query(
       `SELECT * FROM outbox_events 
        WHERE submission_status = 'PENDING' 
@@ -32,17 +32,26 @@ async function processOutbox() {
         const result = await submitToChain(event);
         console.log(`[Outbox] Node responded with:`, result);
         
-        // 3. Update status to SUBMITTED
-        await query(
-          `UPDATE outbox_events 
-           SET submission_status = 'SUBMITTED', retry_count = retry_count + 1 
-           WHERE id = $1`,
-          [event.id]
-        );
-        console.log(`[Outbox] Transaction ${event.transaction_id} submitted to chain.`);
+        // 3. Update status based on the node's response
+        if (result.status === 'CONFIRMED') {
+          await query(
+            `UPDATE outbox_events 
+             SET submission_status = 'CONFIRMED', confirmed_at = now(), retry_count = retry_count + 1 
+             WHERE id = $1`,
+            [event.id]
+          );
+          console.log(`[Outbox] Transaction ${event.transaction_id} CONFIRMED immediately by node.`);
+        } else {
+          await query(
+            `UPDATE outbox_events 
+             SET submission_status = 'SUBMITTED', retry_count = retry_count + 1 
+             WHERE id = $1`,
+            [event.id]
+          );
+          console.log(`[Outbox] Transaction ${event.transaction_id} marked as SUBMITTED.`);
+        }
         
       } catch (error) {
-        // Handle failure (e.g., node is offline)
         console.error(`[Outbox] Failed to submit ${event.transaction_id}:`, error.message);
         
         await query(
@@ -61,7 +70,7 @@ async function processOutbox() {
   }
 }
 
-// Function to check the status of SUBMITTED transactions
+// Fallback check for any transactions stuck on SUBMITTED
 async function checkConfirmations() {
   try {
     const { rows: submitted } = await query(
@@ -72,28 +81,21 @@ async function checkConfirmations() {
 
     for (const tx of submitted) {
       try {
-        // Ask the chain if this transaction is confirmed
         const res = await axios.get(`${process.env.CHAIN_NODE_URL}/transactions/${tx.transaction_id}`, {
           headers: { 'x-fsp-gateway-key': process.env.GATEWAY_API_KEY }
         });
 
-        console.log(`[Outbox] Status check for ${tx.transaction_id}:`, res.data.status);
-
         if (res.data.status === 'CONFIRMED') {
-          // The chain has committed the block!
           await query(
             `UPDATE outbox_events 
              SET submission_status = 'CONFIRMED', confirmed_at = now() 
              WHERE id = $1`,
             [tx.id]
           );
-          console.log(`[Outbox] Transaction ${tx.transaction_id} CONFIRMED by consensus.`);
+          console.log(`[Outbox] Transaction ${tx.transaction_id} CONFIRMED by fallback check.`);
         }
       } catch (err) {
-        // If 404, it's still pending consensus (mempool). We just wait.
-        if (err.response && err.response.status !== 404) {
-          console.error(`[Outbox] Error checking status for ${tx.transaction_id}:`, err.message);
-        }
+        // 404 means it is still pending
       }
     }
   } catch (err) {
@@ -103,12 +105,8 @@ async function checkConfirmations() {
 
 function startOutboxWorker() {
   console.log('[Outbox] Worker started. Polling PostgreSQL every 3s...');
-  
-  // Run immediately, then set intervals
   processOutbox();
   setInterval(processOutbox, POLL_INTERVAL_MS);
-  
-  // Check confirmations every 5 seconds
   setInterval(checkConfirmations, 5000);
 }
 
