@@ -21,6 +21,7 @@ api.use('/admin/blockchain', require('./routes/blockchain'));
 api.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests. Please slow down.' } }));
 api.get('/health', (req, res) => res.json({ ok: true }));
 api.use('/auth', require('./routes/auth'));
+api.use('/ai', require('./routes/ai')); // <--- Added AI Route
 api.use('/customer', require('./routes/customer'));
 api.use('/requests', require('./routes/requests'));
 api.use('/conversations', require('./routes/messages'));

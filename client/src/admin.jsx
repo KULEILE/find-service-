@@ -131,7 +131,7 @@ export function AdminBlockchain() {
   return (
     <>
       <h1>Blockchain Explorer</h1>
-      <p className="muted small">Live view of the FSP Chain network.</p>
+      <p className="muted small">Live view of the FSP Chain network and recent transactions.</p>
       
       <Alert>{error}</Alert>
 
@@ -141,7 +141,7 @@ export function AdminBlockchain() {
           <span>Current Block Height</span>
         </div>
         <div className="kpi">
-          <b>1</b>
+          <b>1</b> {/* Changed from 3 to 1 */}
           <span>Active Validators</span>
         </div>
       </div>
@@ -161,7 +161,9 @@ export function AdminBlockchain() {
       <Table head={['Tx ID', 'Event Type', 'Status', 'Created', 'Confirmed']}>
         {data.transactions.map((tx) => (
           <tr key={tx.transaction_id}>
-            <td className="small muted" style={{ maxWidth: '150px', wordBreak: 'break-all' }}>{tx.transaction_id}</td>
+            <td className="small muted" style={{ maxWidth: '150px', wordBreak: 'break-all' }}>
+              {tx.transaction_id}
+            </td>
             <td><b>{tx.event_type}</b></td>
             <td>
               <Pill kind={tx.submission_status === 'CONFIRMED' ? 'completed' : 'pending'}>

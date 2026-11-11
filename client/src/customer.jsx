@@ -68,8 +68,43 @@ function Footer() {
 
 // ---------- shared provider card ----------
 export function ProviderCard({ p }) {
+  const [aiMatch, setAiMatch] = useState(null);
+
+  useEffect(() => {
+    async function checkAI() {
+      try {
+        const res = await api('/ai/predict', {
+          method: 'POST',
+          body: {
+            same_district: true, 
+            is_available: true,
+            rating: Number(p.avg_rating) || 3.0,
+            price_vs_budget: 0.8, 
+            distance_km: 10
+          }
+        });
+        setAiMatch(res);
+      } catch (e) {
+        // Silently ignore AI errors so the card still loads
+      }
+    }
+    checkAI();
+  }, [p.id, p.avg_rating]);
+
   return (
-    <Link to={`/providers/${p.id}`} className="card row" style={{ alignItems: 'flex-start' }}>
+    <Link to={`/providers/${p.id}`} className="card row" style={{ alignItems: 'flex-start', position: 'relative' }}>
+      
+      {aiMatch && aiMatch.is_suitable && (
+        <div style={{
+          position: 'absolute', top: -10, right: 10,
+          background: 'linear-gradient(45deg, #ff6a00, #ff9a4d)',
+          color: 'white', padding: '4px 10px', borderRadius: '12px',
+          fontSize: '0.75rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(255,106,0,0.3)'
+        }}>
+          ✨ AI Recommended ({aiMatch.confidence}%)
+        </div>
+      )}
+
       <Avatar name={p.business_name} src={p.profile_image} />
       <div className="grow stack-s" style={{ gap: 4 }}>
         <b>{p.business_name}</b>
