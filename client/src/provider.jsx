@@ -4,17 +4,31 @@ import { api, money, when, day, asset, STATUS } from './api';
 import { useSession } from './session';
 import { Alert, AuthLayout, Avatar, AuthImage, BellButton, Empty, Field, Icon, Portal, Sheet, Spinner, Stars, StatusPill, TopBar, useAsync, useBadges, useToast } from './ui';
 
-// ---------- login (providers and admins) ----------
+// ---------- login (providers, admins, and security admins) ----------
 export function Login() {
   const { signInStaff } = useSession(); const nav = useNavigate();
   const [f, setF] = useState({ email: '', password: '' }); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  
   async function submit(e) {
     e.preventDefault(); setError(''); setBusy(true);
-    try { const r = await api('/auth/login', { method: 'POST', body: f }); signInStaff(r.token, r.user); nav(r.user.role === 'admin' ? '/admin' : '/provider', { replace: true }); }
+    try { 
+      const r = await api('/auth/login', { method: 'POST', body: f }); 
+      signInStaff(r.token, r.user); 
+      
+      // ROLE-BASED ROUTING
+      if (r.user.role === 'security_admin') {
+        nav('/security', { replace: true });
+      } else if (r.user.role === 'admin') {
+        nav('/admin', { replace: true });
+      } else {
+        nav('/provider', { replace: true });
+      }
+    }
     catch (err) { setError(err.message); } finally { setBusy(false); }
   }
+  
   return (
-    <AuthLayout title="Welcome back" subtitle="Log in as a service provider or administrator." heading="Manage your services, messages and requests in one place"
+    <AuthLayout title="Welcome back" subtitle="Log in as a service provider, administrator, or security admin." heading="Manage your services, messages and requests in one place"
       points={['Reply to customers in private chat', 'Accept and track every request', 'Build your reputation with reviews']}>
       <form className="stack" onSubmit={submit}>
         <Alert>{error}</Alert>
