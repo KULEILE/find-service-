@@ -37,9 +37,13 @@ app.use('/api', api);
 const dist = path.join(__dirname, '..', '..', 'client', 'dist');
 if (fs.existsSync(dist)) {
   app.use(express.static(dist));
+  
+  // FIX: Explicitly check if the request is for the security portal
   app.get(/^\/(?!api|uploads|socket\.io).*/, (req, res) => {
-    const file = req.path.startsWith('/security') ? 'security.html' : 'index.html';
-    res.sendFile(path.join(dist, file));
+    if (req.path === '/security.html' || req.path.startsWith('/security/')) {
+      return res.sendFile(path.join(dist, 'security.html'));
+    }
+    res.sendFile(path.join(dist, 'index.html'));
   });
 }
 
