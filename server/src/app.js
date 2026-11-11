@@ -14,7 +14,6 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, contentS
 app.use(cors({ origin: config.origins, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 
-// Only profile pictures are public. Chat and request photos are never served from a folder.
 app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profiles'), { maxAge: '7d', index: false }));
 
 const api = express.Router();
@@ -33,16 +32,12 @@ api.use('/', require('./routes/catalog'));
 api.use((req, res) => res.status(404).json({ error: 'Not found.' }));
 app.use('/api', api);
 
-// If the React app has been built, serve it from here too (single server hosting).
 const dist = path.join(__dirname, '..', '..', 'client', 'dist');
 if (fs.existsSync(dist)) {
   app.use(express.static(dist));
   
-  // FIX: Explicitly check if the request is for the security portal
+  // Serve index.html for all non-API routes so React Router handles /security
   app.get(/^\/(?!api|uploads|socket\.io).*/, (req, res) => {
-    if (req.path === '/security.html' || req.path.startsWith('/security/')) {
-      return res.sendFile(path.join(dist, 'security.html'));
-    }
     res.sendFile(path.join(dist, 'index.html'));
   });
 }
@@ -55,7 +50,7 @@ app.use((err, req, res, next) => {
   }
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
   if (err.name === 'MulterError') return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'That image is too large. The limit is 5 MB.' : 'The upload was not accepted.' });
-  if (err.code === '22P02') return res.status(404).json({ error: 'Not found.' });   // badly formed id
+  if (err.code === '22P02') return res.status(404).json({ error: 'Not found.' });
   console.error(err);
   res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });
