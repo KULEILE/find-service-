@@ -20,8 +20,8 @@ model.fit(X_train, y_train)
 # Evaluate
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
-print(f"✅ Model Accuracy: {accuracy * 100:.2f}%")
+print(f"Model Accuracy: {accuracy * 100:.2f}%")
 
 # Save the model
 joblib.dump(model, 'fsp_model.pkl')
-print("✅ Model saved as fsp_model.pkl")
+print(" Model saved as fsp_model.pkl")
